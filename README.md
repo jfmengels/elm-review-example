@@ -13,3 +13,7 @@ The imported rules come from the [lint-unused](https://package.elm-lang.org/pack
 You can run the linting by running `npm run lint`, which will run `elm-lint src/ lint/`. This means it will run `elm-lint` on the `src/` and the `lint/` directories.
 
 You can also run the fix mode by running `npm run lint:fix`, which will run in effect run `elm-lint src/ lint/ --fix`.
+
+## In a CI environment
+
+You can see what `elm-lint` looks like when run in a CI like Travis [here](https://travis-ci.com/jfmengels/elm-lint-example).
