@@ -1,0 +1,30 @@
+{
+  "name": "elm-lint-example",
+  "version": "1.0.0",
+  "description": "Example for elm-init",
+  "scripts": {
+    "test": "elm make && npm run lint --silent",
+    "lint": "elm-lint src/ lint/",
+    "lint:fix": "npm run lint --silent -- --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jfmengels/elm-lint-example.git"
+  },
+  "keywords": [
+    "elm-lint",
+    "example"
+  ],
+  "author": "Jeroen Engels",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jfmengels/elm-lint-example/issues"
+  },
+  "homepage": "https://github.com/jfmengels/elm-lint-example#readme",
+  "dependencies": {
+    "elm": "^0.19.0-no-deps"
+  },
+  "devDependencies": {
+    "@jfmengels/elm-lint": "^1.0.0-beta.2"
+  }
+}
