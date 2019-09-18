@@ -6,7 +6,7 @@ This repository is a very contrived package project, aiming to show how [elm-lin
 
 Configuration lies in the `lint/` folder. There is an `elm.json` containing the linting packages we wish to use. It also contains a `LintConfig.elm` file, in which we explicitly choose the rules we want to enable.
 
-The imported rules come from the [lint-unused](https://package.elm-lang.org/packages/jfmengels/lint-unused/latest) and [lint-debug](https://package.elm-lang.org/packages/jfmengels/lint-debug/latest) packages in the Elm package registry.
+The imported rules come from the [lint-unused](https://package.elm-lang.org/packages/jfmengels/lint-unused/latest/) and [lint-debug](https://package.elm-lang.org/packages/jfmengels/lint-debug/latest/) packages in the Elm package registry.
 
 ## Running it
 
