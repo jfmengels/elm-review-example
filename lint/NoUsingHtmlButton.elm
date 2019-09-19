@@ -1,8 +1,8 @@
 module NoUsingHtmlButton exposing (rule)
 
-import Elm.Syntax.Exposing as Exposing exposing (Exposing)
+import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
-import Elm.Syntax.Import as Import exposing (Import)
+import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Lint.Rule as Rule exposing (Direction, Error, Rule)
