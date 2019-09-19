@@ -16,6 +16,7 @@ import NoDebug
 import NoDefiningColorsOutsideOfUiColor
 import NoUnused.CustomTypeConstructors
 import NoUnused.Variables
+import NoUsingHtmlButton
 
 
 config : List Rule
@@ -27,4 +28,5 @@ config =
 
     -- Custom rules
     , NoDefiningColorsOutsideOfUiColor.rule
+    , NoUsingHtmlButton.rule
     ]
