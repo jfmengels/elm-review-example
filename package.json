@@ -1,9 +1,10 @@
 {
   "name": "elm-lint-example",
   "version": "1.0.0",
-  "description": "Example for elm-init",
+  "description": "Example for elm-lint",
   "scripts": {
-    "test": "elm make && npm run lint --silent",
+    "test": "elm make src/Main.elm && npm run elm-test --silent && npm run lint --silent",
+    "elm-test": "(cd lint/ && elm-test)",
     "lint": "elm-lint src/ lint/",
     "lint:fix": "npm run lint --silent -- --fix"
   },
@@ -25,6 +26,7 @@
     "elm": "^0.19.0-no-deps"
   },
   "devDependencies": {
-    "@jfmengels/elm-lint": "^1.0.0-beta.2"
+    "@jfmengels/elm-lint": "^1.0.0-beta.3",
+    "elm-test": "^0.19.0-rev6"
   }
 }

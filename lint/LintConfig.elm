@@ -13,13 +13,18 @@ when inside the directory containing this file.
 
 import Lint.Rule exposing (Rule)
 import NoDebug
+import NoDefiningColorsOutsideOfUiColor
 import NoUnused.CustomTypeConstructors
 import NoUnused.Variables
 
 
 config : List Rule
 config =
-    [ NoDebug.rule
+    [ -- Rules from packages
+      NoDebug.rule
     , NoUnused.Variables.rule
     , NoUnused.CustomTypeConstructors.rule
+
+    -- Custom rules
+    , NoDefiningColorsOutsideOfUiColor.rule
     ]
