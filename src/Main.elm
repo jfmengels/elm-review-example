@@ -39,18 +39,13 @@ init =
 
 
 type Msg
-    = Increment
-    | Decrement
+    = UserClickedOnRemoveButton
+    | UserAddedItem
 
 
 update : Msg -> Model -> Model
 update msg model =
-    case msg of
-        Increment ->
-            model + 1
-
-        Decrement ->
-            model - 1
+    model
 
 
 
@@ -61,13 +56,15 @@ view : Model -> Html.Html Msg
 view model =
     div []
         [ button
-            [ Attr.css [ Css.color Color.red ]
-            , onClick Decrement
+            [ Attr.css
+                [ Css.height (Css.px 34)
+                , Css.fontSize (Css.px 16)
+                ]
+            , onClick UserClickedOnRemoveButton
             ]
-            [ text "-" ]
+            [ text "Remove" ]
         , div [] [ text (String.fromInt model) ]
-        , Button.button Increment "+"
-            |> Button.withBoldText
+        , Button.button UserAddedItem "Add"
             |> Button.withColor (Css.hex "00FF00")
             |> Button.toHtml
         ]
