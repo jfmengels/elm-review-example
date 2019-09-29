@@ -22,11 +22,10 @@ import Review.Rule exposing (Rule)
 config : List Rule
 config =
     [ -- Rules from packages
-      NoDebug.rule
-    , NoUnused.Variables.rule
-    , NoUnused.CustomTypeConstructors.rule
-
-    -- Custom rules
-    , NoDefiningColorsOutsideOfUiColor.rule
+      --   NoDebug.rule
+      -- , NoUnused.Variables.rule
+      -- , NoUnused.CustomTypeConstructors.rule
+      -- Custom rules
+      NoDefiningColorsOutsideOfUiColor.rule
     , NoUsingHtmlButton.rule
     ]
