@@ -24,4 +24,4 @@ You can also run the fix mode by running `npm run review:fix`, which will run in
 
 ## In a CI environment
 
-You can see what `elm-review` looks like when run in a CI like Travis [here](https://travis-ci.com/jfmengels/elm-review-example).
+You can see what `elm-review` looks like when run in a CI like Travis [here](https://travis-ci.com/jfmengels/elm-review-example). (**NOTE**: I am currently experiencing a problem with tests running into invalid dependencies, preventing the display of review problems. I would really appreciate some help with this!)
