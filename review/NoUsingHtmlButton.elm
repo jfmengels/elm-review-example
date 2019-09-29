@@ -5,7 +5,7 @@ import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
-import Lint.Rule as Rule exposing (Direction, Error, Rule)
+import Review.Rule as Rule exposing (Direction, Error, Rule)
 
 
 type Context
