@@ -2,3 +2,4 @@ elm-stuff
 *.log
 node_modules/
 index.html
+.idea/
