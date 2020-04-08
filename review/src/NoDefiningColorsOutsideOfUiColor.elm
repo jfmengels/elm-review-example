@@ -30,9 +30,9 @@ type Context
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoDefiningColorsOutsideOfUiColor" ()
-        |> Rule.withExpressionVisitor expressionVisitor
+        |> Rule.withSimpleExpressionVisitor expressionVisitor
         |> Rule.fromModuleRuleSchema
-        |> Rule.ignoreErrorsForModules [ "Ui.Color" ]
+        |> Rule.ignoreErrorsForFiles [ "src/Ui/Color.elm" ]
 
 
 expressionVisitor : Node Expression -> List (Error {})

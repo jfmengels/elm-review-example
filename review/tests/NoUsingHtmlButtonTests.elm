@@ -1,13 +1,8 @@
 module NoUsingHtmlButtonTests exposing (all)
 
 import NoUsingHtmlButton exposing (rule)
-import Review.Test exposing (LintResult)
+import Review.Test
 import Test exposing (Test, describe, test)
-
-
-testRule : String -> LintResult
-testRule string =
-    Review.Test.run rule string
 
 
 message : String
@@ -34,92 +29,49 @@ tests : List Test
 tests =
     [ test "should not report the use of a local `button` function" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 button = foo
 a = button 1"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report the use of a `button` function imported from a package that is not Html or Html.Styled" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Foo exposing (button)
 a = button 1"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report the use of a `button` function that may be imported from a package that is not Html or Html.Styled" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Foo exposing (..)
 a = button 1"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report the use of `Ui.Button.button` (unqualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Ui.Button exposing (button)
 a = button 1"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report the use of `Ui.Button.button` (qualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Ui.Button as Button
 a = Button.button 1
 """
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of `Html.button` in the `Ui.Button` module (qualified)" <|
-        \() ->
-            testRule """module Ui.Button exposing (..)
-import Html
-a = Html.button 1
-"""
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of `Html.button` in the `Ui.Button` module (unqualified)" <|
-        \() ->
-            testRule """module Ui.Button exposing (..)
-import Html exposing (button)
-a = button 1
-"""
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of `Html.Styled.button` in the `Ui.Button` module (qualified)" <|
-        \() ->
-            testRule """module Ui.Button exposing (..)
-import Html.Styled
-a = Html.Styled.button 1
-"""
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of `Html.Styled.button` in the `Ui.Button` module (unqualified)" <|
-        \() ->
-            testRule """module Ui.Button exposing (..)
-import Html.Styled exposing (button)
-a = button 1
-"""
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of `Html.Styled.button` in the `Ui.Button` module (alias imported and qualified)" <|
-        \() ->
-            testRule """module Ui.Button exposing (..)
-import Html.Styled as Html
-a = Html.button 1
-"""
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of `Html.Styled.button` in the `Ui.Button` module (alias imported and unqualified)" <|
-        \() ->
-            testRule """module Ui.Button exposing (..)
-import Html.Styled as Html exposing (button)
-a = button 1
-"""
-                |> Review.Test.expectNoErrors
-    , test "should not report the use of a `button` function that is imported from the Ui.Button package (qualified)" <|
-        \() ->
-            testRule """module A exposing (..)
-import Ui.Button as Button
-a = Button.button 1
-"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
 
     -- FAILING TESTS
     , test "should report the use of `Html.button` outside of the `Ui.Button` module (qualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Html
 a = Html.button 1
 """
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message
@@ -129,10 +81,11 @@ a = Html.button 1
                     ]
     , test "should report the use of `Html.button` outside of the `Ui.Button` module (unqualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Html exposing (button)
 a = button 1
 """
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message
@@ -143,10 +96,11 @@ a = button 1
                     ]
     , test "should report the use of `Html.Styled.button` outside of the `Ui.Button` module (qualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Html.Styled
 a = Html.Styled.button 1
 """
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message
@@ -156,10 +110,11 @@ a = Html.Styled.button 1
                     ]
     , test "should report the use of `Html.Styled.button` outside of the `Ui.Button` module (unqualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Html.Styled exposing (button)
 a = button 1
 """
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message
@@ -170,10 +125,11 @@ a = button 1
                     ]
     , test "should report the use of `Html.Styled.button` outside of the `Ui.Button` module (alias imported and qualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Html.Styled as Html
 a = Html.button 1
 """
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message
@@ -183,10 +139,11 @@ a = Html.button 1
                     ]
     , test "should report the use of `Html.Styled.button` outside of the `Ui.Button` module (alias imported and unqualified)" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Html.Styled as Html exposing (button)
 a = button 1
 """
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message

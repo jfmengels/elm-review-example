@@ -59,6 +59,7 @@ view model =
             [ Attr.css
                 [ Css.height (Css.px 34)
                 , Css.fontSize (Css.px 16)
+                , Css.color Color.red
                 ]
             , onClick UserClickedOnRemoveButton
             ]

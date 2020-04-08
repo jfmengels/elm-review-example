@@ -8,92 +8,72 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Review.Rule as Rule exposing (Direction, Error, Rule)
 
 
-type Context
-    = AllowedToUseHtmlButton
-    | ForbiddenToUseHtmlButton
-        { hasImportedButtonInGlobalScope : Bool
-        , htmlModules : List (List String)
-        }
+type alias Context =
+    { hasImportedButtonInGlobalScope : Bool
+    , htmlModules : List (List String)
+    }
 
 
 rule : Rule
 rule =
-    Rule.newSchema "NoUsingHtmlButton"
-        |> Rule.withInitialContext
-            (ForbiddenToUseHtmlButton
-                { hasImportedButtonInGlobalScope = False
-                , htmlModules =
-                    [ [ "Html" ]
-                    , [ "Html", "Styled" ]
-                    ]
-                }
-            )
+    Rule.newModuleRuleSchema "NoUsingHtmlButton" initialContext
         |> Rule.withImportVisitor importVisitor
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withExpressionVisitor expressionVisitor
-        |> Rule.fromSchema
+        |> Rule.fromModuleRuleSchema
+        |> Rule.ignoreErrorsForFiles [ "src/Ui/Button.elm" ]
 
 
-moduleDefinitionVisitor : Node Module -> Context -> ( List Error, Context )
-moduleDefinitionVisitor (Node range moduleDefinition) context =
-    case Module.moduleName moduleDefinition of
-        [ "Ui", "Button" ] ->
-            -- If the analyzed file is Ui.Button, then we don't want to report anything.
-            -- This is the sole location where we are allowed to use the native `button` function.
-            ( [], AllowedToUseHtmlButton )
-
-        _ ->
-            ( [], context )
+initialContext : Context
+initialContext =
+    { hasImportedButtonInGlobalScope = False
+    , htmlModules =
+        [ [ "Html" ]
+        , [ "Html", "Styled" ]
+        ]
+    }
 
 
-importVisitor : Node Import -> Context -> ( List Error, Context )
+importVisitor : Node Import -> Context -> ( List (Error {}), Context )
 importVisitor node context =
-    case context of
-        AllowedToUseHtmlButton ->
-            ( [], context )
+    let
+        importedModuleName : List String
+        importedModuleName =
+            Node.value node
+                |> .moduleName
+                |> Node.value
 
-        ForbiddenToUseHtmlButton contextData ->
-            let
-                importedModuleName : List String
-                importedModuleName =
-                    Node.value node
-                        |> .moduleName
-                        |> Node.value
+        importAlias : () -> List (List String)
+        importAlias () =
+            case Node.value node |> .moduleAlias |> Maybe.map Node.value of
+                Nothing ->
+                    []
 
-                importAlias : () -> List (List String)
-                importAlias () =
-                    case Node.value node |> .moduleAlias |> Maybe.map Node.value of
-                        Nothing ->
-                            []
+                Just alias_ ->
+                    [ alias_ ]
+    in
+    if importedModuleName == [ "Html", "Styled" ] || importedModuleName == [ "Html" ] then
+        case Node.value node |> .exposingList |> Maybe.map Node.value of
+            Just (Exposing.All _) ->
+                ( []
+                , { context
+                    | hasImportedButtonInGlobalScope = True
+                    , htmlModules = List.concat [ importAlias (), context.htmlModules ]
+                  }
+                )
 
-                        Just alias_ ->
-                            [ alias_ ]
-            in
-            if importedModuleName == [ "Html", "Styled" ] || importedModuleName == [ "Html" ] then
-                case Node.value node |> .exposingList |> Maybe.map Node.value of
-                    Just (Exposing.All _) ->
-                        ( []
-                        , ForbiddenToUseHtmlButton
-                            { contextData
-                                | hasImportedButtonInGlobalScope = True
-                                , htmlModules = List.concat [ importAlias (), contextData.htmlModules ]
-                            }
-                        )
+            Just (Exposing.Explicit importedElements) ->
+                ( []
+                , { context
+                    | hasImportedButtonInGlobalScope = containsButton importedElements
+                    , htmlModules = List.concat [ importAlias (), context.htmlModules ]
+                  }
+                )
 
-                    Just (Exposing.Explicit importedElements) ->
-                        ( []
-                        , ForbiddenToUseHtmlButton
-                            { contextData
-                                | hasImportedButtonInGlobalScope = containsButton importedElements
-                                , htmlModules = List.concat [ importAlias (), contextData.htmlModules ]
-                            }
-                        )
-
-                    _ ->
-                        ( [], context )
-
-            else
+            _ ->
                 ( [], context )
+
+    else
+        ( [], context )
 
 
 containsButton : List (Node Exposing.TopLevelExpose) -> Bool
@@ -109,16 +89,16 @@ containsButton importedElements =
             containsButton restOfImportedElements
 
 
-expressionVisitor : Node Expression -> Direction -> Context -> ( List Error, Context )
+expressionVisitor : Node Expression -> Direction -> Context -> ( List (Error {}), Context )
 expressionVisitor node direction context =
-    case ( direction, context ) of
-        ( Rule.OnEnter, ForbiddenToUseHtmlButton { hasImportedButtonInGlobalScope, htmlModules } ) ->
+    case direction of
+        Rule.OnEnter ->
             case Node.value node of
                 Expression.FunctionOrValue moduleName "button" ->
-                    if moduleName == [] && hasImportedButtonInGlobalScope then
+                    if moduleName == [] && context.hasImportedButtonInGlobalScope then
                         ( [ error node ], context )
 
-                    else if List.member moduleName htmlModules then
+                    else if List.member moduleName context.htmlModules then
                         ( [ error node ], context )
 
                     else
@@ -131,7 +111,7 @@ expressionVisitor node direction context =
             ( [], context )
 
 
-error : Node Expression -> Error
+error : Node Expression -> Error {}
 error node =
     Rule.error
         { message = "Use Ui.Button instead of the native Html.button"

@@ -1,13 +1,8 @@
 module NoDefiningColorsOutsideOfUiColorTests exposing (all)
 
 import NoDefiningColorsOutsideOfUiColor exposing (rule)
-import Review.Test exposing (LintResult)
+import Review.Test
 import Test exposing (Test, describe, test)
-
-
-testRule : String -> LintResult
-testRule string =
-    Review.Test.run rule string
 
 
 message : String
@@ -26,35 +21,44 @@ tests : List Test
 tests =
     [ test "should not report normal function calls" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 a = foo n
 b = bar.foo n
 c = Bar.foo 1
-            """
+"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report calls to local functions named `hex`" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 hex n = n
-a = hex 1"""
+a = hex 1
+"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report calls to qualified functions named `hex` not from the `Css` module" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Foo
-a = Foo.hex 1"""
+a = Foo.hex 1
+"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report calls to qualified functions of the `Css` module not named `hex`" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Css
-a = Css.fontSize (Css.rem 10)"""
+a = Css.fontSize (Css.rem 10)
+"""
+                |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should report calls of `Css.hex`" <|
         \() ->
-            testRule """module A exposing (..)
+            """module A exposing (..)
 import Css
-a = Css.hex "00FF00\""""
+a = Css.hex "00FF00"
+"""
+                |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = message

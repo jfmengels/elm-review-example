@@ -11,21 +11,38 @@ when inside the directory containing this file.
 
 -}
 
-import NoDebug
+-- import NoUsingHtmlButton
+
+import NoDebug.Log
+import NoDebug.TodoOrToString
 import NoDefiningColorsOutsideOfUiColor
+import NoExposingEverything
+import NoImportingEverything
+import NoMissingTypeAnnotation
 import NoUnused.CustomTypeConstructors
+import NoUnused.Dependencies
+import NoUnused.Exports
+import NoUnused.Modules
 import NoUnused.Variables
-import NoUsingHtmlButton
 import Review.Rule exposing (Rule)
 
 
 config : List Rule
 config =
     [ -- Rules from packages
-      --   NoDebug.rule
-      -- , NoUnused.Variables.rule
-      -- , NoUnused.CustomTypeConstructors.rule
-      -- Custom rules
-      NoDefiningColorsOutsideOfUiColor.rule
-    , NoUsingHtmlButton.rule
+      NoDebug.Log.rule
+    , NoDebug.TodoOrToString.rule
+    , NoExposingEverything.rule
+    , NoImportingEverything.rule []
+    , NoMissingTypeAnnotation.rule
+    , NoUnused.CustomTypeConstructors.rule []
+    , NoUnused.Dependencies.rule
+    , NoUnused.Exports.rule
+    , NoUnused.Modules.rule
+    , NoUnused.Variables.rule
+
+    -- Custom rules
+    , NoDefiningColorsOutsideOfUiColor.rule
+
+    -- , NoUsingHtmlButton.rule
     ]
