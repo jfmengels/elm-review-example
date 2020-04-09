@@ -11,8 +11,6 @@ when inside the directory containing this file.
 
 -}
 
--- import NoUsingHtmlButton
-
 import NoDebug.Log
 import NoDebug.TodoOrToString
 import NoDefiningColorsOutsideOfUiColor
@@ -24,6 +22,7 @@ import NoUnused.Dependencies
 import NoUnused.Exports
 import NoUnused.Modules
 import NoUnused.Variables
+import NoUsingHtmlButton
 import Review.Rule exposing (Rule)
 
 
@@ -43,6 +42,5 @@ config =
 
     -- Custom rules
     , NoDefiningColorsOutsideOfUiColor.rule
-
-    -- , NoUsingHtmlButton.rule
+    , NoUsingHtmlButton.rule
     ]
