@@ -1,22 +1,15 @@
-module Main exposing (main)
-
--- Press buttons to increment and decrement a counter.
---
--- Read how it works:
---   https://guide.elm-lang.org/architecture/buttons.html
---
+module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Css
-import Html
-import Html.Styled exposing (button, div, text)
-import Html.Styled.Attributes as Attr
-import Html.Styled.Events exposing (onClick)
-import Ui.Button as Button
-import Ui.Color as Color
+import Html exposing (Html, button, div, text)
+import Html.Events exposing (onClick)
+import TLWND exposing (..)
 
 
-main : Program () Model Msg
+
+-- MAIN
+
+
 main =
     Browser.sandbox { init = init, update = update, view = view }
 
@@ -39,34 +32,28 @@ init =
 
 
 type Msg
-    = UserClickedOnRemoveButton
-    | UserAddedItem
+    = Increment
+    | Decrement
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        Increment ->
+            model + 1
+
+        Decrement ->
+            model - 1
 
 
 
 -- VIEW
 
 
-view : Model -> Html.Html Msg
+view : Model -> Html Msg
 view model =
     div []
-        [ button
-            [ Attr.css
-                [ Css.height (Css.px 34)
-                , Css.fontSize (Css.px 16)
-                , Css.color Color.red
-                ]
-            , onClick UserClickedOnRemoveButton
-            ]
-            [ text "Remove" ]
+        [ button [ onClick Decrement ] [ text "-" ]
         , div [] [ text (String.fromInt model) ]
-        , Button.button UserAddedItem "Add"
-            |> Button.withColor (Css.hex "00FF00")
-            |> Button.toHtml
+        , button [ onClick Increment ] [ text "+" ]
         ]
-        |> Html.Styled.toUnstyled
