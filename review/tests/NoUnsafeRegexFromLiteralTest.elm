@@ -53,4 +53,71 @@ a = Helpers.Regex.fromLiteral dynamicValue
                             , under = "Helpers.Regex.fromLiteral dynamicValue"
                             }
                         ]
+        , test "should not report calls to Helpers.Regex.fromLiteral with an valid literal regex containing back-slashes" <|
+            \_ ->
+                """module A exposing (..)
+import Helpers.Regex
+a = Helpers.Regex.fromLiteral "\\\\s"
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should report invalid calls if the function is called through a module alias" <|
+            \_ ->
+                """module A exposing (..)
+import Helpers.Regex as R
+a = R.fromLiteral dynamicValue
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Helpers.Regex.fromLiteral needs to be called with a static string literal."
+                            , details =
+                                [ "This function serves to give you more guarantees about creating regular expressions, but if the argument is dynamic or too complex, I won't be able to tell you."
+                                , "Either make the argument static or use Regex.fromString."
+                                ]
+                            , under = "R.fromLiteral dynamicValue"
+                            }
+                        ]
+        , test "should report invalid calls if the function is called through a direct import" <|
+            \_ ->
+                """module A exposing (..)
+import Helpers.Regex exposing (fromLiteral)
+a = fromLiteral dynamicValue
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Helpers.Regex.fromLiteral needs to be called with a static string literal."
+                            , details =
+                                [ "This function serves to give you more guarantees about creating regular expressions, but if the argument is dynamic or too complex, I won't be able to tell you."
+                                , "Either make the argument static or use Regex.fromString."
+                                ]
+                            , under = "fromLiteral dynamicValue"
+                            }
+                        ]
+        , test "should report invalid calls if the function is called through an import that exposes all" <|
+            \_ ->
+                """module A exposing (..)
+import Helpers.Regex exposing (..)
+a = fromLiteral dynamicValue
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Helpers.Regex.fromLiteral needs to be called with a static string literal."
+                            , details =
+                                [ "This function serves to give you more guarantees about creating regular expressions, but if the argument is dynamic or too complex, I won't be able to tell you."
+                                , "Either make the argument static or use Regex.fromString."
+                                ]
+                            , under = "fromLiteral dynamicValue"
+                            }
+                        ]
+        , test "should not report invalid calls if the function was not imported" <|
+            \_ ->
+                """module A exposing (..)
+import Helpers.Regex
+a = fromLiteral dynamicValue
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
