@@ -8,10 +8,12 @@ module Main exposing (main)
 
 import Browser
 import Css
+import Helpers.Regex
 import Html
 import Html.Styled exposing (button, div, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick)
+import Regex exposing (Regex)
 import Ui.Button as Button
 import Ui.Color as Color
 
@@ -70,3 +72,13 @@ view model =
             |> Button.toHtml
         ]
         |> Html.Styled.toUnstyled
+
+
+validRegex : Regex
+validRegex =
+    Helpers.Regex.fromLiteral "(abc|def)"
+
+
+invalidRegex : Regex
+invalidRegex =
+    Helpers.Regex.fromLiteral "(abc|"

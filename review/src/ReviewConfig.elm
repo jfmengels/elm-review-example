@@ -17,6 +17,7 @@ import NoDefiningColorsOutsideOfUiColor
 import NoExposingEverything
 import NoImportingEverything
 import NoMissingTypeAnnotation
+import NoUnsafeRegexFromLiteral
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
@@ -29,18 +30,18 @@ import Review.Rule exposing (Rule)
 config : List Rule
 config =
     [ -- Rules from packages
-      NoDebug.Log.rule
-    , NoDebug.TodoOrToString.rule
-    , NoExposingEverything.rule
-    , NoImportingEverything.rule []
-    , NoMissingTypeAnnotation.rule
-    , NoUnused.CustomTypeConstructors.rule []
-    , NoUnused.Dependencies.rule
-    , NoUnused.Exports.rule
-    , NoUnused.Modules.rule
-    , NoUnused.Variables.rule
-
-    -- Custom rules
-    , NoDefiningColorsOutsideOfUiColor.rule
-    , NoUsingHtmlButton.rule
+      --   NoDebug.Log.rule
+      -- , NoDebug.TodoOrToString.rule
+      -- , NoExposingEverything.rule
+      -- , NoImportingEverything.rule []
+      -- , NoMissingTypeAnnotation.rule
+      -- , NoUnused.CustomTypeConstructors.rule []
+      -- , NoUnused.Dependencies.rule
+      -- , NoUnused.Exports.rule
+      -- , NoUnused.Modules.rule
+      -- , NoUnused.Variables.rule
+      -- Custom rules
+      -- , NoDefiningColorsOutsideOfUiColor.rule
+      -- , NoUsingHtmlButton.rule
+      NoUnsafeRegexFromLiteral.rule
     ]
