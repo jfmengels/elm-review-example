@@ -37,7 +37,7 @@ expressionVisitor node =
                                     ]
 
                         _ ->
-                            []
+                            [ Rule.error nonLiteralValue (Node.range node) ]
 
                 _ ->
                     []
@@ -51,5 +51,15 @@ invalidRegex =
     { message = "Helpers.Regex.fromLiteral needs to be called with a valid regex."
     , details =
         [ "The regex you passed does not evaluate to a valid regex. Please fix it or use `Regex.fromString`."
+        ]
+    }
+
+
+nonLiteralValue : { message : String, details : List String }
+nonLiteralValue =
+    { message = "Helpers.Regex.fromLiteral needs to be called with a static string literal."
+    , details =
+        [ "This function serves to give you more guarantees about creating regular expressions, but if the argument is dynamic or too complex, I won't be able to tell you."
+        , "Either make the argument static or use Regex.fromString."
         ]
     }

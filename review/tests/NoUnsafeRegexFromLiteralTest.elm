@@ -36,12 +36,21 @@ a = Helpers.Regex.fromLiteral "^ab($cd"
                             , under = """Helpers.Regex.fromLiteral "^ab($cd\""""
                             }
                         ]
-        , test "should not report calls to Helpers.Regex.fromLiteral with an valid literal regex containing back-slashes" <|
+        , test "should report calls to Helpers.Regex.fromLiteral with a non-literal value" <|
             \_ ->
                 """module A exposing (..)
 import Helpers.Regex
-a = Helpers.Regex.fromLiteral "\\\\s"
+a = Helpers.Regex.fromLiteral dynamicValue
 """
                     |> Review.Test.run rule
-                    |> Review.Test.expectNoErrors
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Helpers.Regex.fromLiteral needs to be called with a static string literal."
+                            , details =
+                                [ "This function serves to give you more guarantees about creating regular expressions, but if the argument is dynamic or too complex, I won't be able to tell you."
+                                , "Either make the argument static or use Regex.fromString."
+                                ]
+                            , under = "Helpers.Regex.fromLiteral dynamicValue"
+                            }
+                        ]
         ]
