@@ -1,10 +1,6 @@
 module NoUnsafeRegexFromLiteralTest exposing (all)
 
-import Elm.Project
-import Expect exposing (Expectation)
-import Json.Decode as Decode
 import NoUnsafeRegexFromLiteral exposing (rule)
-import Review.Project as Project exposing (Project)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -53,14 +49,6 @@ a = Helpers.Regex.fromLiteral dynamicValue
                             , under = "Helpers.Regex.fromLiteral dynamicValue"
                             }
                         ]
-        , test "should not report calls to Helpers.Regex.fromLiteral with an valid literal regex containing back-slashes" <|
-            \_ ->
-                """module A exposing (..)
-import Helpers.Regex
-a = Helpers.Regex.fromLiteral "\\\\s"
-"""
-                    |> Review.Test.run rule
-                    |> Review.Test.expectNoErrors
         , test "should report invalid calls if the function is called through a module alias" <|
             \_ ->
                 """module A exposing (..)
@@ -120,4 +108,20 @@ a = fromLiteral dynamicValue
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "should report when function is used is used in a non 'function call' context" <|
+            \_ ->
+                """module A exposing (..)
+import Helpers.Regex
+fromLiteralAlias = Helpers.Regex.fromLiteral
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Helpers.Regex.fromLiteral must be called directly."
+                            , details =
+                                [ "This function serves to give you more guarantees about creating regular expressions, but I can't determine how it is used if you do something else than calling it directly."
+                                ]
+                            , under = "Helpers.Regex.fromLiteral"
+                            }
+                        ]
         ]
