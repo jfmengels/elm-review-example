@@ -30,19 +30,19 @@ import Review.Rule exposing (Rule)
 config : List Rule
 config =
     [ -- Rules from packages
-      NoDebug.Log.rule
-    , NoDebug.TodoOrToString.rule
-    , NoExposingEverything.rule
-    , NoImportingEverything.rule []
-    , NoMissingTypeAnnotation.rule
-    , NoUnused.CustomTypeConstructors.rule []
-    , NoUnused.Dependencies.rule
-    , NoUnused.Exports.rule
-    , NoUnused.Modules.rule
-    , NoUnused.Variables.rule
+      --   NoDebug.Log.rule
+      -- , NoDebug.TodoOrToString.rule
+      -- , NoExposingEverything.rule
+      -- , NoImportingEverything.rule []
+      -- , NoMissingTypeAnnotation.rule
+      -- , NoUnused.CustomTypeConstructors.rule []
+      -- , NoUnused.Dependencies.rule
+      -- NoUnused.Exports.rule
+      -- , NoUnused.Modules.rule
+      NoUnused.Variables.rule
 
     -- Custom rules
-    , NoDefiningColorsOutsideOfUiColor.rule
-    , NoUsingHtmlButton.rule
+    -- , NoDefiningColorsOutsideOfUiColor.rule
+    -- , NoUsingHtmlButton.rule
     , NoUnsafeRegexFromLiteral.rule
     ]

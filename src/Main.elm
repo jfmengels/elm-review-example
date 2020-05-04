@@ -20,6 +20,10 @@ import Ui.Color as Color
 
 main : Program () Model Msg
 main =
+    let
+        _ =
+            invalidRegex
+    in
     Browser.sandbox { init = init, update = update, view = view }
 
 
@@ -74,9 +78,9 @@ view model =
         |> Html.Styled.toUnstyled
 
 
-validRegex : Regex
-validRegex =
-    Helpers.Regex.fromLiteral "(abc|def)"
+unusedVariable : String
+unusedVariable =
+    "unused"
 
 
 invalidRegex : Regex
