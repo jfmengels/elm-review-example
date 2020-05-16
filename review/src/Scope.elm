@@ -2,7 +2,7 @@ module Scope exposing
     ( ModuleContext, addModuleVisitors, initialModuleContext
     , ProjectContext, addProjectVisitors
     , initialProjectContext, fromProjectToModule, fromModuleToProject, foldProjectContexts
-    , realModuleName
+    , moduleNameForValue, moduleNameForType
     )
 
 {-| Collect and infer information automatically for you
@@ -21,11 +21,13 @@ module Scope exposing
 
 # Access
 
-@docs realModuleName
+@docs moduleNameForValue, moduleNameForType
 
 -}
 
 {- Copied over from https://github.com/jfmengels/elm-review-scope
+
+   Version: 0.2.0
 
    Copyright (c) 2020, Jeroen Engels
    All rights reserved.
@@ -68,24 +70,31 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
+import Elm.Syntax.Type
+import Elm.Syntax.TypeAlias
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Elm.Type
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Direction)
+import Set exposing (Set)
 
 
 
 -- MODULE VISITOR
 
 
+{-| The context the Scope visitors will collect and store in your `moduleContext`.
+-}
 type ModuleContext
     = ModuleContext InnerModuleContext
 
 
 type alias InnerModuleContext =
     { scopes : Nonempty Scope
-    , importAliases : Dict String (List String)
-    , importedFunctionOrTypes : Dict String (List String)
+    , localTypes : Set String
+    , importAliases : Dict String (List ModuleName)
+    , importedFunctions : Dict String (List String)
+    , importedTypes : Dict String (List String)
     , dependenciesModules : Dict String Elm.Docs.Module
     , modules : Dict ModuleName Elm.Docs.Module
     , exposesEverything : Bool
@@ -97,6 +106,29 @@ type alias InnerModuleContext =
     }
 
 
+{-| Create an initial `moduleContext` for the scope for module rules. Use this value when
+initializing the scope inside your `initialModuleContext`.
+
+Using [`Scope.addModuleVisitors`](#addModuleVisitors) requires your module context
+to be a record with a `scope : Scope.ModuleContext` field.
+
+    type alias ModuleContext =
+        { scope : Scope.ModuleContext
+
+        -- ...other fields
+        }
+
+    initialModuleContext : ModuleContext
+    initialModuleContext =
+        { scope = Scope.initialModuleContext
+
+        -- ...other fields
+        }
+
+**NOTE**: If you are building a project rule, don't use this value inside your
+`fromProjectToModule` function. Instead, use [`Scope.fromProjectToModule`](#fromProjectToModule).
+
+-}
 initialModuleContext : ModuleContext
 initialModuleContext =
     fromProjectToModule initialProjectContext
@@ -106,6 +138,8 @@ initialModuleContext =
 -- PROJECT VISITOR
 
 
+{-| The context the Scope visitors will collect and store in your `projectContext`.
+-}
 type ProjectContext
     = ProjectContext InnerProjectContext
 
@@ -116,6 +150,28 @@ type alias InnerProjectContext =
     }
 
 
+{-| Create an initial `projectContext` for the scope for project rules. Use this value when
+initializing the scope inside your `initialProjectContext`.
+
+Using [`Scope.addProjectVisitors`](#addProjectVisitors) requires your project context
+to be a record with a `scope : Scope.ProjectContext` field.
+
+Look at the [`Scope.addProjectVisitors`](#addProjectVisitors) example for the
+wiring logic related to `withModuleContext` that you can copy-paste then adapt to your needs.
+
+    type alias ProjectContext =
+        { scope : Scope.ProjectContext
+
+        -- ...other fields
+        }
+
+    initialProjectContext : ProjectContext
+    initialProjectContext =
+        { scope = Scope.initialProjectContext
+        , otherFields = ()
+        }
+
+-}
 initialProjectContext : ProjectContext
 initialProjectContext =
     ProjectContext
@@ -124,11 +180,24 @@ initialProjectContext =
         }
 
 
+{-| Get a `Scope.ModuleContext` from a `Scope.ProjectContext`. Use this in your own
+`fromProjectToModule`.
+
+    fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
+    fromProjectToModule moduleKey moduleName projectContext =
+        { scope = Scope.fromProjectToModule projectContext.scope
+
+        -- ...other fields
+        }
+
+-}
 fromProjectToModule : ProjectContext -> ModuleContext
 fromProjectToModule (ProjectContext projectContext) =
     { scopes = nonemptyList_fromElement emptyScope
+    , localTypes = Set.empty
     , importAliases = Dict.empty
-    , importedFunctionOrTypes = Dict.empty
+    , importedFunctions = Dict.empty
+    , importedTypes = Dict.empty
     , dependenciesModules = projectContext.dependenciesModules
     , modules = projectContext.modules
     , exposesEverything = False
@@ -142,6 +211,17 @@ fromProjectToModule (ProjectContext projectContext) =
         |> ModuleContext
 
 
+{-| Get a `Scope.ProjectContext` from a `Scope.ModuleContext`. Use this in your own
+`fromModuleToProject`.
+
+    fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
+    fromModuleToProject moduleKey moduleName moduleContext =
+        { scope = Scope.fromModuleToProject moduleName moduleContext.scope
+
+        -- ...other fields
+        }
+
+-}
 fromModuleToProject : Node ModuleName -> ModuleContext -> ProjectContext
 fromModuleToProject moduleName (ModuleContext moduleContext) =
     ProjectContext
@@ -159,6 +239,16 @@ fromModuleToProject moduleName (ModuleContext moduleContext) =
         }
 
 
+{-| Fold `Scope.ProjectContext`s. Use this in your own `foldProjectContexts`.
+
+    foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
+    foldProjectContexts newContext previousContext =
+        { scope = Scope.foldProjectContexts newContext.scope previousContext.scope
+
+        -- ...other fields
+        }
+
+-}
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts (ProjectContext a) (ProjectContext b) =
     ProjectContext
@@ -186,6 +276,70 @@ emptyScope =
     }
 
 
+{-| Adds the scope visitors to your project rule.
+
+Using `addProjectVisitors` requires your project context
+to be a record with a `scope : Scope.ProjectContext` field.
+
+**NOTE**: You need to use this function **before** your other visitors, otherwise
+the scope may not be up-to-date when you access it.
+
+Adding project visitors adds a bit of wiring, but you can pretty much copy-paste
+the code below and adapt it to your needs.
+
+    rule : Rule
+    rule =
+        Rule.newProjectRuleSchema "RuleName" initialProjectContext
+            |> Scope.addProjectVisitors
+            -- |> addOtherVisitors
+            |> Rule.withModuleContext
+                { fromProjectToModule = fromProjectToModule
+                , fromModuleToProject = fromModuleToProject
+                , foldProjectContexts = foldProjectContexts
+                }
+            |> Rule.fromProjectRuleSchema
+
+    type alias ProjectContext =
+        { scope : Scope.ProjectContext
+
+        -- ...other fields
+        }
+
+    type alias ModuleContext =
+        { scope : Scope.ModuleContext
+
+        -- ...other fields
+        }
+
+    initialProjectContext : ProjectContext
+    initialProjectContext =
+        { scope = Scope.initialProjectContext
+
+        -- ...other fields
+        }
+
+    fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
+    fromProjectToModule moduleKey moduleName projectContext =
+        { scope = Scope.fromProjectToModule projectContext.scope
+
+        -- ...other fields
+        }
+
+    fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
+    fromModuleToProject moduleKey moduleName moduleContext =
+        { scope = Scope.fromModuleToProject moduleName moduleContext.scope
+
+        -- ...other fields
+        }
+
+    foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
+    foldProjectContexts newContext previousContext =
+        { scope = Scope.foldProjectContexts newContext.scope previousContext.scope
+
+        -- ...other fields
+        }
+
+-}
 addProjectVisitors :
     Rule.ProjectRuleSchema { schemaState | canAddModuleVisitor : () } { projectContext | scope : ProjectContext } { moduleContext | scope : ModuleContext }
     -> Rule.ProjectRuleSchema { schemaState | canAddModuleVisitor : (), hasAtLeastOneVisitor : (), withModuleContext : Rule.Required } { projectContext | scope : ProjectContext } { moduleContext | scope : ModuleContext }
@@ -196,6 +350,37 @@ addProjectVisitors schema =
         |> Rule.withModuleVisitor internalAddModuleVisitors
 
 
+{-| Adds the scope visitors to your module rule.
+
+Using `addModuleVisitors` requires your module context
+to be a record with a `scope : Scope.ModuleContext` field.
+
+**NOTE**: You need to use this function **before** your other visitors, otherwise
+the scope may not be up-to-date when you access it.
+
+    rule : Rule
+    rule =
+        Rule.newModuleRuleSchema "RuleName" initialContext
+            -- Scope.addModuleVisitors needs to be added before your own visitors
+            |> Scope.addModuleVisitors
+            -- |> addOtherVisitors
+            |> Rule.fromModuleRuleSchema
+
+    type alias Context =
+        -- Scope expects a context with a record, containing the `scope` field.
+        { scope : Scope.ModuleContext
+
+        -- ...other fields
+        }
+
+    initialContext : Context
+    initialContext =
+        { scope = Scope.initialModuleContext
+
+        -- ...other fields
+        }
+
+-}
 addModuleVisitors :
     Rule.ModuleRuleSchema { schemaState | canCollectProjectData : () } { moduleContext | scope : ModuleContext }
     -> Rule.ModuleRuleSchema { schemaState | canCollectProjectData : (), hasAtLeastOneVisitor : () } { moduleContext | scope : ModuleContext }
@@ -405,120 +590,138 @@ createFakeImport { moduleName, moduleAlias, exposingList } =
 declarationListVisitor : List (Node Declaration) -> InnerModuleContext -> InnerModuleContext
 declarationListVisitor declarations innerContext =
     List.foldl registerDeclaration innerContext declarations
-        |> (\newInnerContext -> List.foldl registerExposed newInnerContext declarations)
 
 
 registerDeclaration : Node Declaration -> InnerModuleContext -> InnerModuleContext
 registerDeclaration declaration innerContext =
-    case declarationNameNode declaration of
-        Just ( variableType, nameNode ) ->
-            innerContext.scopes
-                |> registerVariable
-                    { variableType = variableType
-                    , node = nameNode
-                    }
-                    (Node.value nameNode)
-                |> updateScope innerContext
-
-        Nothing ->
-            innerContext
-
-
-declarationNameNode : Node Declaration -> Maybe ( VariableType, Node String )
-declarationNameNode (Node _ declaration) =
-    case declaration of
-        Declaration.FunctionDeclaration function ->
-            Just
-                ( TopLevelVariable
-                , function.declaration
-                    |> Node.value
-                    |> .name
-                )
-
-        Declaration.CustomTypeDeclaration type_ ->
-            Just ( TopLevelVariable, type_.name )
-
-        Declaration.AliasDeclaration alias_ ->
-            Just ( TopLevelVariable, alias_.name )
-
-        Declaration.PortDeclaration port_ ->
-            Just ( Port, port_.name )
-
-        Declaration.InfixDeclaration _ ->
-            Nothing
-
-        Declaration.Destructuring _ _ ->
-            Nothing
-
-
-registerExposed : Node Declaration -> InnerModuleContext -> InnerModuleContext
-registerExposed declaration innerContext =
     case Node.value declaration of
         Declaration.FunctionDeclaration function ->
             let
-                name : String
-                name =
+                nameNode : Node String
+                nameNode =
                     function.declaration
                         |> Node.value
                         |> .name
-                        |> Node.value
             in
-            if innerContext.exposesEverything || Dict.member name innerContext.exposedNames then
-                { innerContext
-                    | exposedValues =
-                        { name = name
-                        , comment = ""
-                        , tipe = convertTypeSignatureToDocsType function.signature
-                        }
-                            :: innerContext.exposedValues
-                }
-
-            else
-                innerContext
-
-        Declaration.CustomTypeDeclaration type_ ->
-            if innerContext.exposesEverything || Dict.member (Node.value type_.name) innerContext.exposedNames then
-                { innerContext
-                    | exposedUnions =
-                        { name = Node.value type_.name
-                        , comment = ""
-
-                        -- TODO
-                        , args = []
-                        , tags =
-                            type_.constructors
-                                -- TODO Constructor args?
-                                |> List.map (\constructor -> ( Node.value (Node.value constructor).name, [] ))
-                        }
-                            :: innerContext.exposedUnions
-                }
-
-            else
-                innerContext
+            innerContext
+                |> addToScope
+                    { variableType = TopLevelVariable
+                    , node = nameNode
+                    }
+                |> registerIfExposed (registerExposedValue function) (Node.value nameNode)
 
         Declaration.AliasDeclaration alias_ ->
-            if innerContext.exposesEverything || Dict.member (Node.value alias_.name) innerContext.exposedNames then
-                { innerContext
-                    | exposedAliases =
-                        { name = Node.value alias_.name
-                        , comment = ""
-                        , args = []
-                        , tipe = Elm.Type.Tuple []
-                        }
-                            :: innerContext.exposedAliases
-                }
+            { innerContext | localTypes = Set.insert (Node.value alias_.name) innerContext.localTypes }
+                |> addToScope
+                    { variableType = TopLevelVariable
+                    , node = alias_.name
+                    }
+                |> registerIfExposed (registerExposedTypeAlias alias_) (Node.value alias_.name)
 
-            else
+        Declaration.CustomTypeDeclaration { name, constructors } ->
+            List.foldl
+                (\constructor innerContext_ ->
+                    let
+                        constructorName : Node String
+                        constructorName =
+                            constructor |> Node.value |> .name
+                    in
+                    addToScope
+                        { variableType = CustomTypeConstructor
+                        , node = constructorName
+                        }
+                        innerContext_
+                )
+                { innerContext | localTypes = Set.insert (Node.value name) innerContext.localTypes }
+                constructors
+                |> registerIfExposed (registerExposedCustomType constructors) (Node.value name)
+
+        Declaration.PortDeclaration signature ->
+            addToScope
+                { variableType = Port
+                , node = signature.name
+                }
                 innerContext
 
-        Declaration.PortDeclaration _ ->
-            innerContext
-
         Declaration.InfixDeclaration _ ->
+            -- TODO Support operators
+            -- I could use help adding this.
             innerContext
 
         Declaration.Destructuring _ _ ->
+            -- Not possible in 0.19 code
             innerContext
+
+
+addToScope : { variableType : VariableType, node : Node String } -> InnerModuleContext -> InnerModuleContext
+addToScope variableData innerContext =
+    let
+        newScopes : Nonempty Scope
+        newScopes =
+            registerVariable
+                variableData
+                (Node.value variableData.node)
+                innerContext.scopes
+    in
+    { innerContext | scopes = newScopes }
+
+
+registerExposedValue : Expression.Function -> String -> InnerModuleContext -> InnerModuleContext
+registerExposedValue function name innerContext =
+    { innerContext
+        | exposedValues =
+            { name = name
+            , comment =
+                case Maybe.map Node.value function.documentation of
+                    Just str ->
+                        str
+
+                    Nothing ->
+                        ""
+            , tipe = convertTypeSignatureToDocsType function.signature
+            }
+                :: innerContext.exposedValues
+    }
+
+
+registerExposedCustomType : List (Node Elm.Syntax.Type.ValueConstructor) -> String -> InnerModuleContext -> InnerModuleContext
+registerExposedCustomType constructors name innerContext =
+    { innerContext
+        | exposedUnions =
+            { name = name
+            , comment = ""
+
+            -- TODO
+            , args = []
+            , tags =
+                constructors
+                    -- TODO Constructor args?
+                    |> List.map (\constructor -> ( Node.value (Node.value constructor).name, [] ))
+            }
+                :: innerContext.exposedUnions
+    }
+
+
+registerExposedTypeAlias : Elm.Syntax.TypeAlias.TypeAlias -> String -> InnerModuleContext -> InnerModuleContext
+registerExposedTypeAlias alias_ name innerContext =
+    { innerContext
+        | exposedAliases =
+            { name = name
+            , comment = ""
+            , args = []
+            , tipe = Elm.Type.Tuple []
+            }
+                :: innerContext.exposedAliases
+    }
+
+
+registerIfExposed : (String -> InnerModuleContext -> InnerModuleContext) -> String -> InnerModuleContext -> InnerModuleContext
+registerIfExposed registerFn name innerContext =
+    if innerContext.exposesEverything || Dict.member name innerContext.exposedNames then
+        registerFn name innerContext
+
+    else
+        innerContext
 
 
 convertTypeSignatureToDocsType : Maybe (Node Signature) -> Elm.Type.Type
@@ -565,8 +768,8 @@ registerVariable variableInfo name scopes =
 
 
 updateScope : InnerModuleContext -> Nonempty Scope -> InnerModuleContext
-updateScope context scopes =
-    { context | scopes = scopes }
+updateScope innerContext scopes =
+    { innerContext | scopes = scopes }
 
 
 
@@ -619,14 +822,30 @@ registerImportAlias : Import -> InnerModuleContext -> InnerModuleContext
 registerImportAlias import_ innerContext =
     case import_.moduleAlias of
         Nothing ->
-            innerContext
+            let
+                moduleName : List String
+                moduleName =
+                    Node.value import_.moduleName
+            in
+            case moduleName of
+                singleSegmentModuleName :: [] ->
+                    { innerContext
+                        | importAliases =
+                            Dict.update
+                                singleSegmentModuleName
+                                (\previousValue -> Just <| moduleName :: Maybe.withDefault [] previousValue)
+                                innerContext.importAliases
+                    }
+
+                _ ->
+                    innerContext
 
         Just alias_ ->
             { innerContext
                 | importAliases =
-                    Dict.insert
+                    Dict.update
                         (Node.value alias_ |> getModuleName)
-                        (Node.value import_.moduleName)
+                        (\previousValue -> Just <| Node.value import_.moduleName :: Maybe.withDefault [] previousValue)
                         innerContext.importAliases
             }
 
@@ -673,8 +892,7 @@ registerImportExposed import_ innerContext =
                             List.concat
                                 [ List.concatMap
                                     (\union ->
-                                        nameWithModuleName union
-                                            :: List.map (\( name, _ ) -> ( name, moduleName )) union.tags
+                                        List.map (\( name, _ ) -> ( name, moduleName )) union.tags
                                     )
                                     module_.unions
                                 , List.map nameWithModuleName module_.values
@@ -682,10 +900,18 @@ registerImportExposed import_ innerContext =
                                 , List.map nameWithModuleName module_.binops
                                 ]
                                 |> Dict.fromList
+
+                        exposedTypes : Dict String (List String)
+                        exposedTypes =
+                            List.concat
+                                [ List.map nameWithModuleName module_.unions
+                                , List.map nameWithModuleName module_.aliases
+                                ]
+                                |> Dict.fromList
                     in
                     { innerContext
-                        | importedFunctionOrTypes =
-                            Dict.union innerContext.importedFunctionOrTypes exposedValues
+                        | importedFunctions = Dict.union innerContext.importedFunctions exposedValues
+                        , importedTypes = Dict.union innerContext.importedTypes exposedTypes
                     }
 
                 Exposing.Explicit topLevelExposeList ->
@@ -693,18 +919,25 @@ registerImportExposed import_ innerContext =
                         exposedValues : Dict String (List String)
                         exposedValues =
                             topLevelExposeList
-                                |> List.concatMap (namesFromExposingList module_)
+                                |> List.concatMap (valuesFromExposingList module_)
+                                |> List.map (\name -> ( name, moduleName ))
+                                |> Dict.fromList
+
+                        exposedTypes : Dict String (List String)
+                        exposedTypes =
+                            topLevelExposeList
+                                |> List.filterMap typesFromExposingList
                                 |> List.map (\name -> ( name, moduleName ))
                                 |> Dict.fromList
                     in
                     { innerContext
-                        | importedFunctionOrTypes =
-                            Dict.union innerContext.importedFunctionOrTypes exposedValues
+                        | importedFunctions = Dict.union innerContext.importedFunctions exposedValues
+                        , importedTypes = Dict.union innerContext.importedTypes exposedTypes
                     }
 
 
-namesFromExposingList : Elm.Docs.Module -> Node TopLevelExpose -> List String
-namesFromExposingList module_ topLevelExpose =
+valuesFromExposingList : Elm.Docs.Module -> Node TopLevelExpose -> List String
+valuesFromExposingList module_ topLevelExpose =
     case Node.value topLevelExpose of
         Exposing.InfixExpose operator ->
             [ operator ]
@@ -712,21 +945,40 @@ namesFromExposingList module_ topLevelExpose =
         Exposing.FunctionExpose function ->
             [ function ]
 
-        Exposing.TypeOrAliasExpose type_ ->
-            [ type_ ]
+        Exposing.TypeOrAliasExpose name ->
+            if List.any (\alias_ -> alias_.name == name) module_.aliases then
+                [ name ]
+
+            else
+                -- Type is a custom type
+                []
 
         Exposing.TypeExpose { name, open } ->
             case open of
                 Just _ ->
-                    name
-                        :: (module_.unions
-                                |> List.filter (\union -> union.name == name)
-                                |> List.concatMap .tags
-                                |> List.map Tuple.first
-                           )
+                    module_.unions
+                        |> List.filter (\union -> union.name == name)
+                        |> List.concatMap .tags
+                        |> List.map Tuple.first
 
                 Nothing ->
-                    [ name ]
+                    []
+
+
+typesFromExposingList : Node TopLevelExpose -> Maybe String
+typesFromExposingList topLevelExpose =
+    case Node.value topLevelExpose of
+        Exposing.InfixExpose _ ->
+            Nothing
+
+        Exposing.FunctionExpose _ ->
+            Nothing
+
+        Exposing.TypeOrAliasExpose name ->
+            Just name
+
+        Exposing.TypeExpose { name } ->
+            Just name
 
 
 unboxProjectContext : ProjectContext -> InnerProjectContext
@@ -747,6 +999,7 @@ type alias VariableInfo =
 
 type VariableType
     = TopLevelVariable
+    | CustomTypeConstructor
     | FunctionParameter
     | LetVariable
     | PatternVariable
@@ -837,7 +1090,7 @@ collectNamesFromPattern pattern =
 
 
 popScope : Node Expression -> Direction -> InnerModuleContext -> InnerModuleContext
-popScope ((Node range value) as node) direction context =
+popScope node direction context =
     let
         currentScope : Scope
         currentScope =
@@ -944,22 +1197,134 @@ findInList predicate list =
 -- ACCESS
 
 
-realModuleName : ModuleContext -> String -> List String -> List String
-realModuleName (ModuleContext context) functionOrType moduleName =
-    if List.length moduleName == 0 then
-        if isInScope functionOrType context.scopes then
-            []
+{-| Get the name of the module where a value was defined.
+A value can be either a function, a constant, a custom type constructor or a type alias (used as a function).
 
-        else
-            Dict.get functionOrType context.importedFunctionOrTypes
-                |> Maybe.withDefault []
+  - The second argument (`String`) is the name of the value
+  - The third argument (`List String`) is the module name that was used next to the value's name where you found it
 
-    else if List.length moduleName == 1 then
-        Dict.get (getModuleName moduleName) context.importAliases
-            |> Maybe.withDefault moduleName
+If the element was defined in the current module, then the result will be `[]`.
 
-    else
-        moduleName
+    expressionVisitor : Node Expression -> Direction -> Context -> ( List (Error {}), Context )
+    expressionVisitor node direction context =
+        case ( direction, Node.value node ) of
+            ( Rule.OnEnter, Expression.FunctionOrValue moduleName "button" ) ->
+                if Scope.moduleNameForValue context.scope "button" moduleName == [ "Html" ] then
+                    ( [ createError node ], context )
+
+                else
+                    ( [], context )
+
+            _ ->
+                ( [], context )
+
+-}
+moduleNameForValue : ModuleContext -> String -> List String -> List String
+moduleNameForValue (ModuleContext context) valueName moduleName =
+    case moduleName of
+        [] ->
+            if isInScope valueName context.scopes then
+                []
+
+            else
+                Dict.get valueName context.importedFunctions
+                    |> Maybe.withDefault []
+
+        _ :: [] ->
+            case Dict.get (getModuleName moduleName) context.importAliases of
+                Just [ aliasedModuleName ] ->
+                    aliasedModuleName
+
+                Just aliases ->
+                    case
+                        findInList
+                            (\aliasedModuleName ->
+                                case Dict.get aliasedModuleName context.modules of
+                                    Just module_ ->
+                                        isValueDeclaredInModule valueName module_
+
+                                    Nothing ->
+                                        False
+                            )
+                            aliases
+                    of
+                        Just aliasedModuleName ->
+                            aliasedModuleName
+
+                        Nothing ->
+                            List.head aliases
+                                |> Maybe.withDefault moduleName
+
+                Nothing ->
+                    moduleName
+
+        _ ->
+            moduleName
+
+
+{-| Get the name of the module where a type was defined.
+A type can be either a custom type or a type alias.
+
+  - The second argument (`String`) is the name of the type
+  - The third argument (`List String`) is the module name that was used next to the type name where you found it
+
+-}
+moduleNameForType : ModuleContext -> String -> List String -> List String
+moduleNameForType (ModuleContext context) typeName moduleName =
+    case moduleName of
+        [] ->
+            if Set.member typeName context.localTypes then
+                []
+
+            else
+                Dict.get typeName context.importedTypes
+                    |> Maybe.withDefault []
+
+        _ :: [] ->
+            case Dict.get (getModuleName moduleName) context.importAliases of
+                Just [ aliasedModuleName ] ->
+                    aliasedModuleName
+
+                Just aliases ->
+                    case
+                        findInList
+                            (\aliasedModuleName ->
+                                case Dict.get aliasedModuleName context.modules of
+                                    Just module_ ->
+                                        isTypeDeclaredInModule typeName module_
+
+                                    Nothing ->
+                                        False
+                            )
+                            aliases
+                    of
+                        Just aliasedModuleName ->
+                            aliasedModuleName
+
+                        Nothing ->
+                            List.head aliases
+                                |> Maybe.withDefault moduleName
+
+                Nothing ->
+                    moduleName
+
+        _ ->
+            moduleName
+
+
+isValueDeclaredInModule : String -> Elm.Docs.Module -> Bool
+isValueDeclaredInModule valueName module_ =
+    List.any (.name >> (==) valueName) module_.values
+        || List.any (.name >> (==) valueName) module_.aliases
+        || List.any
+            (\union -> List.any (Tuple.first >> (==) valueName) union.tags)
+            module_.unions
+
+
+isTypeDeclaredInModule : String -> Elm.Docs.Module -> Bool
+isTypeDeclaredInModule typeName module_ =
+    List.any (.name >> (==) typeName) module_.aliases
+        || List.any (.name >> (==) typeName) module_.unions
 
 
 isInScope : String -> Nonempty Scope -> Bool

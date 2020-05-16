@@ -156,7 +156,7 @@ declarationListVisitor nodes moduleContext =
 isTargetFunction : ModuleContext -> ModuleName -> String -> Bool
 isTargetFunction moduleContext moduleName functionName =
     (functionName == targetFunctionName)
-        && (Scope.realModuleName moduleContext.scope targetFunctionName moduleName == targetModuleName)
+        && (Scope.moduleNameForValue moduleContext.scope targetFunctionName moduleName == targetModuleName)
 
 
 expressionVisitor : Node Expression -> Rule.Direction -> ModuleContext -> ( List (Error {}), ModuleContext )
